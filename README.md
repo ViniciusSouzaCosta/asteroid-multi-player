@@ -1,1 +1,1 @@
-# asteroid-multi-player
+# asteroid-single-player
