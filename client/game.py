@@ -1,9 +1,4 @@
-"""Game loop and scenes (menu, play, game over).
-
-- InputMapper converts keyboard input into PlayerCommand.
-- World updates the simulation and generates events (strings) for Game.
-- Game handles audio and screen transitions (low coupling).
-"""
+"""Game loop and scenes."""
 
 import sys
 
@@ -22,18 +17,26 @@ class Game:
     """Orchestrates input -> update -> draw."""
 
     def __init__(self) -> None:
-        pg.mixer.pre_init(C.AUDIO_FREQUENCY, C.AUDIO_SIZE, C.AUDIO_CHANNELS, C.AUDIO_BUFFER)
+        pg.mixer.pre_init(
+            C.AUDIO_FREQUENCY,
+            C.AUDIO_SIZE,
+            C.AUDIO_CHANNELS,
+            C.AUDIO_BUFFER,
+        )
+
         pg.init()
         pg.mixer.init()
+        pg.joystick.init()
 
         self.screen = pg.display.set_mode((C.WIDTH, C.HEIGHT))
-        pg.display.set_caption("Asteroids")
+        pg.display.set_caption("Asteroids PvP Local")
 
         self.clock = pg.time.Clock()
         self.running = True
 
         self.font = pg.font.SysFont(C.FONT_NAME, C.FONT_SIZE_SMALL)
         self.big = pg.font.SysFont(C.FONT_NAME, C.FONT_SIZE_LARGE)
+
         self.renderer = Renderer(
             self.screen,
             config=C,
@@ -50,6 +53,7 @@ class Game:
     def run(self) -> None:
         while self.running:
             dt = self.clock.tick(C.FPS) / 1000.0
+
             self._handle_events()
             self._update(dt)
             self._draw()
@@ -64,27 +68,25 @@ class Game:
             if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                 self._quit()
 
-            if self.scene == SceneState.MENU:
-                if event.type == pg.KEYDOWN:
-                    self.scene = SceneState.PLAY
-                continue
+            self.input_mapper.handle_event(event)
 
-            if self.scene == SceneState.GAME_OVER:
-                if event.type == pg.KEYDOWN:
+            if self.scene == SceneState.MENU:
+                if event.type in (pg.KEYDOWN, pg.JOYBUTTONDOWN):
                     self.world.reset()
                     self.scene = SceneState.PLAY
-                continue
+                    continue
 
-            if self.scene == SceneState.PLAY:
-                self.input_mapper.handle_event(event)
+            if self.scene == SceneState.GAME_OVER:
+                if event.type in (pg.KEYDOWN, pg.JOYBUTTONDOWN):
+                    self.world.reset()
+                    self.scene = SceneState.PLAY
+                    continue
 
     def _update(self, dt: float) -> None:
         if self.scene != SceneState.PLAY:
             return
 
-        keys = pg.key.get_pressed()
-        cmd = self.input_mapper.build_command(keys)
-        commands = {C.LOCAL_PLAYER_ID: cmd}
+        commands = self.input_mapper.build_commands()
 
         self.world.update(dt, commands)
 
@@ -93,7 +95,9 @@ class Game:
             self.scene = SceneState.GAME_OVER
             return
 
-        self.audio.update_thrust(cmd.thrust)
+        any_thrust = any(cmd.thrust for cmd in commands.values())
+
+        self.audio.update_thrust(any_thrust)
         self.audio.update_ufo_siren(list(self.world.ufos))
         self.audio.play_events(self.world.events)
 
@@ -106,26 +110,13 @@ class Game:
             return
 
         if self.scene == SceneState.GAME_OVER:
-            self.renderer.draw_game_over()
+            self.renderer.draw_game_over(self.world)
             pg.display.flip()
             return
 
         self.renderer.draw_world(self.world)
+        self.renderer.draw_hud(self.world, self.scene)
 
-        ship = self.world.get_ship(C.LOCAL_PLAYER_ID)
-        ts_timer = ship.triple_shot_timer if ship and getattr(ship, 'triple_shot_active', False) else 0.0
-        time_stop_timer = getattr(self.world, 'time_stop_timer', 0.0)
-        shield_timer = ship.shield_timer if ship and getattr(ship, 'shield_active', False) else 0.0
-
-        self.renderer.draw_hud(
-            self.world.scores.get(C.LOCAL_PLAYER_ID, 0),
-            self.world.lives.get(C.LOCAL_PLAYER_ID, 0),
-            self.world.wave,
-            self.scene,
-            ts_timer,
-            time_stop_timer,
-            shield_timer,
-        )
         pg.display.flip()
 
     def _quit(self) -> None:
