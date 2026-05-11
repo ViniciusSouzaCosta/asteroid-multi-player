@@ -18,8 +18,10 @@ PlayerId = int
 class World:
     """World state and game rules."""
 
-    def __init__(self) -> None:
+    def __init__(self, game_mode: str = C.GAME_MODE_FFA) -> None:
+        self.game_mode = game_mode
         self.ships: Dict[PlayerId, Ship] = {}
+        self.teams: Dict[PlayerId, int] = {}
         self.bullets = pg.sprite.Group()
         self.asteroids = pg.sprite.Group()
         self.ufos = pg.sprite.Group()
@@ -32,7 +34,9 @@ class World:
         self.all_sprites = pg.sprite.Group()
 
         self.scores: Dict[PlayerId, int] = {}
+        self.team_scores: Dict[int, int] = {C.TEAM_RED: 0, C.TEAM_BLUE: 0}
         self.lives: Dict[PlayerId, int] = {}
+        self.team_lives: Dict[int, int] = {C.TEAM_RED: 0, C.TEAM_BLUE: 0}
 
         self.wave = 0
         self.wave_cool = float(C.WAVE_DELAY)
@@ -55,12 +59,19 @@ class World:
         self.__init__()
 
     def spawn_player(self, player_id: PlayerId) -> None:
+        team_id = 0
+        if self.game_mode == C.GAME_MODE_TEAMS:
+            team_id = C.TEAM_ASSIGNMENTS.get(player_id, 0)
+            self.teams[player_id] = team_id
+            # Adiciona a vida inicial do jogador ao contador de vidas do time
+            self.team_lives[team_id] = self.team_lives.get(team_id, 0) + C.START_LIVES
+        
         x, y = C.PLAYER_SPAWN_POSITIONS.get(
             player_id,
             (C.WIDTH / 2, C.HEIGHT / 2),
         )
 
-        ship = Ship(player_id, Vec(x, y))
+        ship = Ship(player_id, Vec(x, y), team_id=team_id)
         ship.invuln = float(C.SAFE_SPAWN_TIME)
 
         self.ships[player_id] = ship
@@ -300,6 +311,13 @@ class World:
             if killer_id is not None and killer_id in self.scores:
                 self.scores[killer_id] += C.PLAYER_KILL_SCORE
 
+                # Pontuação de equipe (se aplicável e não for fogo amigo)
+                if self.game_mode == C.GAME_MODE_TEAMS:
+                    killed_ship = self.get_ship(player_id)
+                    killer_ship = self.get_ship(killer_id)
+                    if killed_ship and killer_ship and killed_ship.team_id != killer_ship.team_id:
+                        self.team_scores[killer_ship.team_id] += C.PLAYER_KILL_SCORE
+
             ship = self.get_ship(player_id)
 
             if ship is not None:
@@ -337,8 +355,29 @@ class World:
         if self.lives.get(pid, 0) <= 0:
             return
 
+        # 1. Diminui a vida do jogador e do time (se aplicável)
         self.lives[pid] = self.lives[pid] - 1
+        if self.game_mode == C.GAME_MODE_TEAMS and ship.team_id > 0:
+            self.team_lives[ship.team_id] = max(0, self.team_lives.get(ship.team_id, 0) - 1)
+
         self.events.append("ship_explosion")
+        
+        # 2. Se o jogador ainda tem vidas, respawn
+        if self.lives[pid] > 0:
+            x, y = C.PLAYER_SPAWN_POSITIONS.get(pid, (C.WIDTH / 2, C.HEIGHT / 2))
+            ship.pos.xy = (x, y)
+            ship.vel.xy = (0, 0)
+            ship.angle = -90.0
+            ship.invuln = float(C.SAFE_SPAWN_TIME)
+            return
+
+        # 3. Se o jogador ficou sem vidas, remove a nave
+        ship.kill()
+        if pid in self.ships:
+            del self.ships[pid]
+
+        # 4. Verifica condição de vitória
+        self._check_winner()
 
         if self.lives[pid] <= 0:
             ship.kill()
@@ -348,15 +387,29 @@ class World:
 
             return
 
-        x, y = C.PLAYER_SPAWN_POSITIONS.get(pid, (C.WIDTH / 2, C.HEIGHT / 2))
-
-        ship.pos.xy = (x, y)
-        ship.vel.xy = (0, 0)
-        ship.angle = -90.0
-        ship.invuln = float(C.SAFE_SPAWN_TIME)
-
     def spawn_powerup(self, pos: Vec, powerup_type: str) -> None:
         powerup = PowerUp(pos, powerup_type)
 
         self.powerups.add(powerup)
         self.all_sprites.add(powerup)
+
+    def _check_winner(self) -> None:
+        """Verifica a condição de vitória baseada no modo de jogo."""
+        if self.game_mode == C.GAME_MODE_FFA:
+            self._check_pvp_winner()  # Método existente para FFA
+        elif self.game_mode == C.GAME_MODE_TEAMS:
+            self._check_team_winner()
+    
+    def _check_team_winner(self) -> None:
+        """Verifica se uma equipe inteira foi eliminada."""
+        red_alive = self.team_lives.get(C.TEAM_RED, 0) > 0
+        blue_alive = self.team_lives.get(C.TEAM_BLUE, 0) > 0
+
+        if not red_alive or not blue_alive:
+            self.game_over = True
+            if red_alive and not blue_alive:
+                self.winner_team = C.TEAM_RED  # Novo atributo
+            elif blue_alive and not red_alive:
+                self.winner_team = C.TEAM_BLUE
+            else:
+                self.winner_team = 0  # Empate

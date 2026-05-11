@@ -60,7 +60,7 @@ class Renderer:
             3: (10, self.config.HEIGHT - 70),
             4: (self.config.WIDTH - 300, self.config.HEIGHT - 70),
         }
-
+        
         for player_id in self.config.PLAYER_IDS:
             color = self.config.PLAYER_COLORS.get(player_id, self.config.WHITE)
             score = world.scores.get(player_id, 0)
@@ -91,6 +91,26 @@ class Renderer:
 
         if time_stop_timer > 0:
             self._draw_time_stop_bar(time_stop_timer)
+        
+        if getattr(world, 'game_mode', None) == self.config.GAME_MODE_TEAMS:
+            self._draw_team_hud(world)
+
+    def _draw_team_hud(self, world: object) -> None:
+        """Desenha a pontuação e vidas da equipe no centro superior."""
+        center_x = self.config.WIDTH // 2
+        y = 10  # Abaixo do indicador de Wave
+
+        for team_id in [self.config.TEAM_RED, self.config.TEAM_BLUE]:
+            team_color = self.config.TEAM_COLORS[team_id]
+            score = world.team_scores.get(team_id, 0)
+            lives = world.team_lives.get(team_id, 0)
+            
+            text = f"TIME {'VERMELHO' if team_id == 1 else 'AZUL'}: {score:06d} | Vidas: {lives}"
+            label = self.font.render(text, True, team_color)
+            
+            # Posiciona: time vermelho à esquerda do centro, azul à direita
+            x = center_x - 300 if team_id == self.config.TEAM_RED else center_x + 20
+            self.screen.blit(label, (x, y))
 
     def _draw_player_powerup_status(
         self,
@@ -327,7 +347,12 @@ class Renderer:
             (int(p3.x), int(p3.y)),
         ]
 
-        color = self.config.PLAYER_COLORS.get(ship.player_id, self.config.WHITE)
+        if ship.team_id > 0:
+            # Modo times: usa a cor do time (ajustada por jogador)
+            color = self._get_player_team_color(ship.player_id, ship.team_id)
+        else:
+            # Modo FFA ou sem time definido
+            color = self.config.PLAYER_COLORS.get(ship.player_id, self.config.WHITE)
 
         pg.draw.polygon(self.screen, color, points, width=2)
 
@@ -361,6 +386,11 @@ class Renderer:
                 ship.r + 6,
                 width=1,
             )
+
+    def _get_player_team_color(self, player_id: int, team_id: int) -> tuple[int, int, int]:
+        """Retorna a cor de um jogador no modo times."""
+        # Usa PLAYER_COLORS_TEAMS do config para diferenciar dentro do time
+        return self.config.PLAYER_COLORS_TEAMS.get(player_id, self.config.WHITE)
 
     def _draw_ufo(self, ufo: UFO) -> None:
         width = ufo.r * 2
@@ -411,3 +441,13 @@ class Renderer:
         pg.draw.circle(self.screen, color, center, powerup.r)
         pg.draw.circle(self.screen, self.config.WHITE, center, powerup.r, width=2)
         pg.draw.circle(self.screen, self.config.WHITE, center, 3)
+
+    def draw_mode_select(self) -> None:
+        """Desenha a tela de seleção de modo de jogo."""
+        center_x = self.config.WIDTH // 2
+        self._draw_text(self.big, "SELECIONE O MODO DE JOGO", center_x - 350, 200)
+
+        self._draw_text(self.font, "1 - TODOS CONTRA TODOS (Free for All)", center_x - 260, 350)
+        self._draw_text(self.font, "2 - EQUIPES (Vermelho vs Azul)", center_x - 240, 450)
+        
+        self._draw_text(self.font, "ESC: Voltar ao Menu", center_x - 130, 550)

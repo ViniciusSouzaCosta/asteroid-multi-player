@@ -29,9 +29,11 @@ class Bullet(pg.sprite.Sprite):
         pos: Vec,
         vel: Vec,
         ttl: float = C.BULLET_TTL,
+        team_id: int = 0,
     ) -> None:
         super().__init__()
         self.owner_id = owner_id
+        self.team_id = team_id
         self.pos = Vec(pos)
         self.vel = Vec(vel)
         self.ttl = float(ttl)
@@ -83,9 +85,10 @@ class Asteroid(pg.sprite.Sprite):
 class Ship(pg.sprite.Sprite):
     """Ship controlled by command (does not read keyboard)."""
 
-    def __init__(self, player_id: PlayerId, pos: Vec) -> None:
+    def __init__(self, player_id: PlayerId, pos: Vec,  team_id: int = 0) -> None:
         super().__init__()
         self.player_id = player_id
+        self.team_id = team_id
         self.pos = Vec(pos)
         self.vel = Vec(0, 0)
         self.angle = -90.0
@@ -146,20 +149,20 @@ class Ship(pg.sprite.Sprite):
         vel = self.vel + dirv * C.SHIP_BULLET_SPEED
 
         self.cool = float(C.SHIP_FIRE_RATE)
-        bullet = Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL)
+        bullet = Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL, team_id=self.team_id)
 
         if self.triple_shot_active:
             # Projétil esquerdo
             left_dir = rotate_vec(dirv, -C.TRIPLE_SHOOT_SPREAD)
             left_pos = self.pos + left_dir * (self.r + C.BULLET_SPAWN_OFFSET)
             left_vel = self.vel + left_dir * C.SHIP_BULLET_SPEED
-            bullet_left = Bullet(self.player_id, left_pos, left_vel, ttl=C.BULLET_TTL)
+            bullet_left = Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL, team_id=self.team_id)
             
             # Projétil direito
             right_dir = rotate_vec(dirv, C.TRIPLE_SHOOT_SPREAD)
             right_pos = self.pos + right_dir * (self.r + C.BULLET_SPAWN_OFFSET)
             right_vel = self.vel + right_dir * C.SHIP_BULLET_SPEED
-            bullet_right = Bullet(self.player_id, right_pos, right_vel, ttl=C.BULLET_TTL)
+            bullet_right = Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL, team_id=self.team_id)
             return bullet, bullet_left, bullet_right
 
         return bullet
