@@ -1,4 +1,6 @@
-"""Client-side rendering (pygame)."""
+"""Client-side rendering with pygame."""
+
+from typing import Callable
 
 import pygame as pg
 
@@ -18,11 +20,12 @@ class Renderer:
     ) -> None:
         self.screen = screen
         self.config = config
+
         safe_fonts = fonts or {}
         self.font = safe_fonts["font"]
         self.big = safe_fonts["big"]
 
-        self._draw_dispatch: dict[type, callable] = {
+        self._draw_dispatch: dict[type, Callable] = {
             Bullet: self._draw_bullet,
             Asteroid: self._draw_asteroid,
             Ship: self._draw_ship,
@@ -36,89 +39,247 @@ class Renderer:
 
     def draw_world(self, world: object) -> None:
         sprites = getattr(world, "all_sprites", [])
+
         for sprite in sprites:
             drawer = self._draw_dispatch.get(type(sprite))
+
             if drawer is not None:
                 drawer(sprite)
 
     def draw_hud(
         self,
-        score: int,
-        lives: int,
-        wave: int,
+        world: object,
         state: SceneState,
-        triple_shot_timer: float = 0.0,
-        time_stop_timer: float = 0.0,
-        shield_timer: float = 0.0,
     ) -> None:
         if state != SceneState.PLAY:
             return
 
-        text = f"SCORE {score:06d}   LIVES {lives}   WAVE {wave}"
-        label = self.font.render(text, True, self.config.WHITE)
-        self.screen.blit(label, (10, 10))
+        hud_positions = {
+            1: (10, 10),
+            2: (self.config.WIDTH - 300, 10),
+            3: (10, self.config.HEIGHT - 70),
+            4: (self.config.WIDTH - 300, self.config.HEIGHT - 70),
+        }
 
-        # Powerup Time Bars
-        y_offset = 40 
-        bar_w = 150
-        bar_h = 12
+        for player_id in self.config.PLAYER_IDS:
+            color = self.config.PLAYER_COLORS.get(player_id, self.config.WHITE)
+            score = world.scores.get(player_id, 0)
+            lives = world.lives.get(player_id, 0)
+            ship = world.ships.get(player_id)
 
-        if triple_shot_timer > 0:
-            pct = max(0.0, triple_shot_timer / self.config.TRIPLE_SHOOT_DURATION)
-            
-            pg.draw.rect(self.screen, self.config.GRAY, (10, y_offset, bar_w, bar_h))
-            pg.draw.rect(self.screen, (0, 255, 0), (10, y_offset, int(bar_w * pct), bar_h))
-            
-            lbl = self.font.render(f"TRIPLE SHOT {triple_shot_timer:.1f}s", True, self.config.WHITE)
-            self.screen.blit(lbl, (bar_w + 20, y_offset - 4))
-            y_offset += 25
+            x, y = hud_positions[player_id]
+
+            text = f"P{player_id} SCORE {score:06d} LIVES {lives}"
+            label = self.font.render(text, True, color)
+            self.screen.blit(label, (x, y))
+
+            if ship is not None:
+                self._draw_player_powerup_status(ship, x, y + 24, color)
+
+        wave_label = self.font.render(
+            f"WAVE {world.wave}",
+            True,
+            self.config.WHITE,
+        )
+
+        self.screen.blit(
+            wave_label,
+            (self.config.WIDTH // 2 - 45, 10),
+        )
+
+        time_stop_timer = getattr(world, "time_stop_timer", 0.0)
 
         if time_stop_timer > 0:
-            max_time = getattr(self.config, 'TIME_STOP_DURATION', 4.0)
-            pct = max(0.0, time_stop_timer / max_time)
-            
-            pg.draw.rect(self.screen, self.config.GRAY, (10, y_offset, bar_w, bar_h))
-            pg.draw.rect(self.screen, (0, 255, 255), (10, y_offset, int(bar_w * pct), bar_h))
-            
-            lbl = self.font.render(f"TIME STOP {time_stop_timer:.1f}s", True, self.config.WHITE)
-            self.screen.blit(lbl, (bar_w + 20, y_offset - 4))
+            self._draw_time_stop_bar(time_stop_timer)
 
-        if shield_timer > 0:
-            max_time = getattr(self.config, 'SHIELD_DURATION', 3.0)
-            pct = max(0.0, shield_timer / max_time)
-            
-            pg.draw.rect(self.screen, self.config.GRAY, (10, y_offset, bar_w, bar_h))
-            pg.draw.rect(self.screen, (135, 206, 250), (10, y_offset, int(bar_w * pct), bar_h))
-            
-            lbl = self.font.render(f"SHIELD {shield_timer:.1f}s", True, self.config.WHITE)
-            self.screen.blit(lbl, (bar_w + 20, y_offset - 4))
+    def _draw_player_powerup_status(
+        self,
+        ship: Ship,
+        x: int,
+        y: int,
+        color: tuple[int, int, int],
+    ) -> None:
+        status = []
+
+        if getattr(ship, "triple_shot_active", False):
+            status.append(f"TRP {ship.triple_shot_timer:.1f}s")
+
+        if getattr(ship, "shield_active", False):
+            status.append(f"SHD {ship.shield_timer:.1f}s")
+
+        if not status:
+            return
+
+        label = self.font.render(" | ".join(status), True, color)
+        self.screen.blit(label, (x, y))
+
+    def _draw_time_stop_bar(self, time_stop_timer: float) -> None:
+        bar_w = 180
+        bar_h = 12
+        max_time = getattr(self.config, "TIME_STOP_DURATION", 4.0)
+        pct = max(0.0, time_stop_timer / max_time)
+
+        x = self.config.WIDTH // 2 - bar_w // 2
+        y = 42
+
+        pg.draw.rect(
+            self.screen,
+            self.config.GRAY,
+            (x, y, bar_w, bar_h),
+        )
+
+        pg.draw.rect(
+            self.screen,
+            (0, 255, 255),
+            (x, y, int(bar_w * pct), bar_h),
+        )
+
+        lbl = self.font.render(
+            f"TIME STOP {time_stop_timer:.1f}s",
+            True,
+            self.config.WHITE,
+        )
+
+        self.screen.blit(lbl, (x + bar_w + 10, y - 4))
 
     def draw_menu(self) -> None:
+        center_x = self.config.WIDTH // 2
+
         self._draw_text(
             self.big,
-            "ASTEROIDS",
-            self.config.WIDTH // 2 - 170,
-            200,
-        )
-        self._draw_text(
-            self.font,
-            "Press any key",
-            self.config.WIDTH // 2 - 170,
-            350,
+            "ASTEROIDS PVP",
+            center_x - 230,
+            120,
         )
 
-    def draw_game_over(self) -> None:
-        self._draw_text(
-            self.big,
-            "GAME OVER",
-            self.config.WIDTH // 2 - 170,
-            260,
-        )
         self._draw_text(
             self.font,
-            "Press any key",
-            self.config.WIDTH // 2 - 170,
-            340,
+            "MULTIPLAYER LOCAL - 4 JOGADORES",
+            center_x - 210,
+            240,
+        )
+
+        self._draw_text(
+            self.font,
+            "Cada jogador tem 3 vidas",
+            center_x - 160,
+            295,
+        )
+
+        self._draw_text(
+            self.font,
+            "Vence o ultimo jogador vivo",
+            center_x - 170,
+            330,
+        )
+
+        self._draw_text(
+            self.font,
+            "Analogico/D-Pad: mover",
+            center_x - 160,
+            385,
+        )
+
+        self._draw_text(
+            self.font,
+            "Botao 0: atirar | Botao 1: hyperspace",
+            center_x - 240,
+            420,
+        )
+
+        self._draw_text(
+            self.font,
+            "Pressione qualquer botao para iniciar",
+            center_x - 230,
+            490,
+        )
+
+        self._draw_text(
+            self.font,
+            "ESC: sair",
+            center_x - 55,
+            535,
+        )
+
+    def draw_game_over(self, world: object | None = None) -> None:
+        center_x = self.config.WIDTH // 2
+
+        self._draw_text(
+            self.big,
+            "FIM DE JOGO",
+            center_x - 190,
+            100,
+        )
+
+        if world is not None:
+            winner_id = getattr(world, "winner_id", None)
+
+            if winner_id is not None:
+                winner_color = self.config.PLAYER_COLORS.get(
+                    winner_id,
+                    self.config.WHITE,
+                )
+
+                winner_label = self.big.render(
+                    f"P{winner_id} VENCEU!",
+                    True,
+                    winner_color,
+                )
+
+                self.screen.blit(winner_label, (center_x - 190, 200))
+            else:
+                self._draw_text(
+                    self.big,
+                    "EMPATE",
+                    center_x - 110,
+                    200,
+                )
+
+            y = 330
+
+            ranking = sorted(
+                world.scores.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+
+            self._draw_text(
+                self.font,
+                "RANKING FINAL",
+                center_x - 90,
+                y - 45,
+            )
+
+            for index, item in enumerate(ranking, start=1):
+                player_id, score = item
+                lives = world.lives.get(player_id, 0)
+
+                color = self.config.PLAYER_COLORS.get(
+                    player_id,
+                    self.config.WHITE,
+                )
+
+                label = self.font.render(
+                    f"{index}. P{player_id}: {score:06d} pontos | vidas: {lives}",
+                    True,
+                    color,
+                )
+
+                self.screen.blit(label, (center_x - 190, y))
+                y += 34
+
+        self._draw_text(
+            self.font,
+            "Pressione qualquer botao para jogar novamente",
+            center_x - 270,
+            560,
+        )
+
+        self._draw_text(
+            self.font,
+            "ESC: sair",
+            center_x - 55,
+            600,
         )
 
     def _draw_text(
@@ -133,9 +294,15 @@ class Renderer:
 
     def _draw_bullet(self, bullet: Bullet) -> None:
         center = (int(bullet.pos.x), int(bullet.pos.y))
+
+        color = self.config.PLAYER_COLORS.get(
+            getattr(bullet, "owner_id", 0),
+            self.config.WHITE,
+        )
+
         pg.draw.circle(
             self.screen,
-            self.config.WHITE,
+            color,
             center,
             bullet.r,
             width=1,
@@ -143,32 +310,38 @@ class Renderer:
 
     def _draw_asteroid(self, asteroid: Asteroid) -> None:
         points = []
+
         for point in asteroid.poly:
             px = int(asteroid.pos.x + point.x)
             py = int(asteroid.pos.y + point.y)
             points.append((px, py))
+
         pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
 
     def _draw_ship(self, ship: Ship) -> None:
         p1, p2, p3 = ship.ship_points()
+
         points = [
             (int(p1.x), int(p1.y)),
             (int(p2.x), int(p2.y)),
             (int(p3.x), int(p3.y)),
         ]
-        pg.draw.polygon(self.screen, self.config.WHITE, points, width=1)
+
+        color = self.config.PLAYER_COLORS.get(ship.player_id, self.config.WHITE)
+
+        pg.draw.polygon(self.screen, color, points, width=2)
 
         if ship.shield_active:
             center = (int(ship.pos.x), int(ship.pos.y))
-            # Círculo do escudo (semi-transparente seria ideal, mas pygame básico não suporta bem)
+
             pg.draw.circle(
                 self.screen,
-                (135, 206, 250),  # Azul claro
+                (135, 206, 250),
                 center,
                 ship.r + 8,
                 width=2,
             )
-            # Efeito de pulsação baseado no timer
+
             if int(ship.shield_timer * 5) % 2 == 0:
                 pg.draw.circle(
                     self.screen,
@@ -180,6 +353,7 @@ class Renderer:
 
         if ship.invuln > 0.0 and int(ship.invuln * 10) % 2 == 0:
             center = (int(ship.pos.x), int(ship.pos.y))
+
             pg.draw.circle(
                 self.screen,
                 self.config.WHITE,
@@ -194,37 +368,46 @@ class Renderer:
 
         body = pg.Rect(0, 0, width, height)
         body.center = (int(ufo.pos.x), int(ufo.pos.y))
+
         pg.draw.ellipse(self.screen, self.config.WHITE, body, width=1)
 
         cup = pg.Rect(0, 0, int(width * 0.5), int(height * 0.7))
         cup.center = (int(ufo.pos.x), int(ufo.pos.y - height * 0.3))
+
         pg.draw.ellipse(self.screen, self.config.WHITE, cup, width=1)
 
     def _draw_black_hole(self, black_hole: BlackHole) -> None:
         center = (int(black_hole.pos.x), int(black_hole.pos.y))
 
-        # Aura visual
-        pg.draw.circle(self.screen, self.config.PURPLE, center, black_hole.visual_r)
-        # Anel interno
         pg.draw.circle(
-            self.screen, self.config.VIOLET, center, black_hole.visual_r - 4, width=2
+            self.screen,
+            self.config.PURPLE,
+            center,
+            black_hole.visual_r,
         )
-         # O buraco negro em si (centro)
-        pg.draw.circle(self.screen, self.config.BLACK, center, black_hole.r)
 
-    def _draw_powerup(self, powerup) -> None:
-        """Desenha um power-up com efeito de piscar."""
+        pg.draw.circle(
+            self.screen,
+            self.config.VIOLET,
+            center,
+            black_hole.visual_r - 4,
+            width=2,
+        )
+
+        pg.draw.circle(
+            self.screen,
+            self.config.BLACK,
+            center,
+            black_hole.r,
+        )
+
+    def _draw_powerup(self, powerup: PowerUp) -> None:
         if not powerup.visible:
             return
-            
+
         center = (int(powerup.pos.x), int(powerup.pos.y))
         color = powerup.get_color()
-        
-        # Desenha o power-up principal
+
         pg.draw.circle(self.screen, color, center, powerup.r)
-        
-        # Adiciona um brilho/borda branca
         pg.draw.circle(self.screen, self.config.WHITE, center, powerup.r, width=2)
-        
-        # Efeito visual extra: um ponto brilhante no centro
         pg.draw.circle(self.screen, self.config.WHITE, center, 3)
