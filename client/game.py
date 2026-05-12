@@ -73,13 +73,23 @@ class Game:
             if self.scene == SceneState.MENU:
                 if event.type in (pg.KEYDOWN, pg.JOYBUTTONDOWN):
                     self.world.reset()
-                    self.scene = SceneState.PLAY
+                    self.scene = SceneState.MODE_SELECT
                     continue
+
+            elif self.scene == SceneState.MODE_SELECT:
+                if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_1:
+                        self.game_mode = C.GAME_MODE_FFA
+                        self._start_new_game()
+                    elif event.key == pg.K_2:
+                        self.game_mode = C.GAME_MODE_TEAMS
+                        self._start_new_game()
+                continue
 
             if self.scene == SceneState.GAME_OVER:
                 if event.type in (pg.KEYDOWN, pg.JOYBUTTONDOWN):
                     self.world.reset()
-                    self.scene = SceneState.PLAY
+                    self.scene = SceneState.MODE_SELECT
                     continue
 
     def _update(self, dt: float) -> None:
@@ -108,8 +118,9 @@ class Game:
             self.renderer.draw_menu()
             pg.display.flip()
             return
-
-        if self.scene == SceneState.GAME_OVER:
+        elif self.scene == SceneState.MODE_SELECT:
+            self.renderer.draw_mode_select()
+        elif self.scene == SceneState.GAME_OVER:
             self.renderer.draw_game_over(self.world)
             pg.display.flip()
             return
@@ -123,3 +134,8 @@ class Game:
         self.running = False
         pg.quit()
         sys.exit(0)
+
+    def _start_new_game(self) -> None:
+        """Inicia um novo jogo com o modo selecionado."""
+        self.world = World(game_mode=self.game_mode)  # Passa o modo para World
+        self.scene = SceneState.PLAY
