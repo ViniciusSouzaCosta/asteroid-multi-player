@@ -150,3 +150,12 @@ class InputMapper:
             return 0, 0
 
         return joy.get_hat(hat)
+    
+    def get_mode_selection(self, event: pg.event.Event) -> int | None:
+        """Retorna 1 para FFA, 2 para TEAMS, ou None se não for evento relevante."""
+        if event.type == pg.JOYBUTTONDOWN:
+            if event.button == 0:  # Botão 0 = FFA
+                return 1
+            elif event.button == 1:  # Botão 1 = TEAMS
+                return 2
+        return None

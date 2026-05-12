@@ -10,6 +10,39 @@ MAX_PLAYERS = 4
 PLAYER_IDS = (1, 2, 3, 4)
 LOCAL_PLAYER_ID = 1
 
+# --- Modos de Jogo ---
+GAME_MODE_FFA = "free_for_all"  
+GAME_MODE_TEAMS = "teams"       
+
+# --- Configurações de Times (para o modo TEAMS) ---
+TEAM_RED = 1
+TEAM_BLUE = 2
+
+# Mapeamento de time padrão: jogadores 1 e 2 no time vermelho, 3 e 4 no azul
+TEAM_ASSIGNMENTS = {
+    1: TEAM_RED,
+    2: TEAM_RED,
+    3: TEAM_BLUE,
+    4: TEAM_BLUE,
+}
+
+# Cores para os times (usadas no HUD e talvez nas naves)
+TEAM_COLORS = {
+    TEAM_RED: (255, 80, 80),    # Vermelho
+    TEAM_BLUE: (80, 80, 255),   # Azul
+}
+
+# Cores individuais DENTRO do time (para diferenciar jogadores do mesmo time)
+PLAYER_COLORS_TEAMS = {
+    # Time Vermelho
+    1: (220, 50, 50),   # Vermelho mais escuro
+    2: (255, 150, 150), # Vermelho claro
+
+    # Time Azul
+    3: (50, 50, 220),   # Azul escuro
+    4: (150, 150, 255), # Azul claro
+}
+
 PLAYER_COLORS = {
     1: (80, 200, 255),
     2: (255, 100, 100),
