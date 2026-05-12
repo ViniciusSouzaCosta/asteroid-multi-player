@@ -91,11 +91,6 @@ class Renderer:
             wave_label,
             (self.config.WIDTH // 2 - 45, self.config.HEIGHT - 70),
         )
-
-        time_stop_timer = getattr(world, "time_stop_timer", 0.0)
-
-        if time_stop_timer > 0:
-            self._draw_time_stop_bar(time_stop_timer)
         
         if getattr(world, 'game_mode', None) == self.config.GAME_MODE_TEAMS:
             self._draw_team_hud(world)
@@ -137,35 +132,6 @@ class Renderer:
 
         label = self.font.render(" | ".join(status), True, color)
         self.screen.blit(label, (x, y))
-
-    def _draw_time_stop_bar(self, time_stop_timer: float) -> None:
-        bar_w = 180
-        bar_h = 12
-        max_time = getattr(self.config, "TIME_STOP_DURATION", 4.0)
-        pct = max(0.0, time_stop_timer / max_time)
-
-        x = self.config.WIDTH // 2 - bar_w // 2
-        y = 42
-
-        pg.draw.rect(
-            self.screen,
-            self.config.GRAY,
-            (x, y, bar_w, bar_h),
-        )
-
-        pg.draw.rect(
-            self.screen,
-            (0, 255, 255),
-            (x, y, int(bar_w * pct), bar_h),
-        )
-
-        lbl = self.font.render(
-            f"TIME STOP {time_stop_timer:.1f}s",
-            True,
-            self.config.WHITE,
-        )
-
-        self.screen.blit(lbl, (x + bar_w + 10, y - 4))
 
     def draw_menu(self) -> None:
         center_x = self.config.WIDTH // 2
