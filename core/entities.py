@@ -108,6 +108,10 @@ class Ship(pg.sprite.Sprite):
         self.shield_timer = 0.0
         self.shield_duration = C.SHIELD_DURATION
 
+        # Parry
+        self.parry_active_timer = 0.0
+        self.parry_cooldown_timer = 0.0
+
 
     def apply_command(
         self,
@@ -172,6 +176,14 @@ class Ship(pg.sprite.Sprite):
         self.vel.xy = (0, 0)
         self.invuln = float(C.SAFE_SPAWN_TIME)
 
+    def try_parry(self) -> None:
+        if self.parry_cooldown_timer <= 0.0:
+            self.parry_active_timer = C.PARRY_ACTIVE_WINDOW
+            self.parry_cooldown_timer = C.PARRY_COOLDOWN
+
+    def parry_on(self) -> bool:
+        return getattr(self, "parry_active_timer", 0.0) > 0.0
+
     def update(self, dt: float) -> None:
         if self.cool > 0.0:
             self.cool -= dt
@@ -194,6 +206,11 @@ class Ship(pg.sprite.Sprite):
             if self.shield_timer <= 0.0:
                 self.shield_active = False
                 self.shield_timer = 0.0
+
+        if self.parry_active_timer > 0.0:
+            self.parry_active_timer -= dt
+        if self.parry_cooldown_timer > 0.0:
+            self.parry_cooldown_timer -= dt
 
         self.pos += self.vel * dt
         self.pos = wrap_pos(self.pos)
