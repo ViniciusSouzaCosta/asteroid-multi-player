@@ -62,7 +62,12 @@ class Renderer:
         }
         
         for player_id in self.config.PLAYER_IDS:
-            color = self.config.PLAYER_COLORS.get(player_id, self.config.WHITE)
+            # Verifica se está no modo equipes para escolher a cor correta
+            if getattr(world, 'game_mode', None) == self.config.GAME_MODE_TEAMS:
+                color = self.config.PLAYER_COLORS_TEAMS.get(player_id, self.config.WHITE)
+            else:
+                color = self.config.PLAYER_COLORS.get(player_id, self.config.WHITE)
+            
             score = world.scores.get(player_id, 0)
             lives = world.lives.get(player_id, 0)
             ship = world.ships.get(player_id)
@@ -84,7 +89,7 @@ class Renderer:
 
         self.screen.blit(
             wave_label,
-            (self.config.WIDTH // 2 - 45, 10),
+            (self.config.WIDTH // 2 - 45, self.config.HEIGHT - 70),
         )
 
         time_stop_timer = getattr(world, "time_stop_timer", 0.0)
@@ -232,52 +237,118 @@ class Renderer:
         )
 
         if world is not None:
-            winner_id = getattr(world, "winner_id", None)
-
-            if winner_id is not None:
-                winner_color = self.config.PLAYER_COLORS.get(
-                    winner_id,
-                    self.config.WHITE,
-                )
-
-                winner_label = self.big.render(
-                    f"P{winner_id} VENCEU!",
-                    True,
-                    winner_color,
-                )
-
-                self.screen.blit(winner_label, (center_x - 190, 200))
-            else:
+            game_mode = getattr(world, "game_mode", None)
+            
+            if game_mode == self.config.GAME_MODE_TEAMS:
+                winner_team = getattr(world, "winner_team", None)
+                
+                if winner_team is not None and winner_team > 0:
+                    team_name = "VERMELHO" if winner_team == self.config.TEAM_RED else "AZUL"
+                    team_color = self.config.TEAM_COLORS.get(winner_team, self.config.WHITE)
+                    
+                    winner_label = self.big.render(
+                        f"TIME {team_name} VENCEU!",
+                        True,
+                        team_color,
+                    )
+                    self.screen.blit(winner_label, (center_x - 250, 200))
+                else:
+                    self._draw_text(
+                        self.big,
+                        "EMPATE",
+                        center_x - 110,
+                        200,
+                    )
+                
+                # Mostra ranking de times
+                y = 330
                 self._draw_text(
-                    self.big,
-                    "EMPATE",
-                    center_x - 110,
-                    200,
+                    self.font,
+                    "RANKING DE TIMES",
+                    center_x - 90,
+                    y - 45,
                 )
+                
+                # Time vermelho
+                red_color = self.config.TEAM_COLORS[self.config.TEAM_RED]
+                red_score = world.team_scores.get(self.config.TEAM_RED, 0)
+                red_lives = world.team_lives.get(self.config.TEAM_RED, 0)
+                red_label = self.font.render(
+                    f"1. TIME VERMELHO: {red_score:06d} pontos | vidas: {red_lives}",
+                    True,
+                    red_color,
+                )
+                self.screen.blit(red_label, (center_x - 190, y))
+                y += 34
+                
+                # Time azul
+                blue_color = self.config.TEAM_COLORS[self.config.TEAM_BLUE]
+                blue_score = world.team_scores.get(self.config.TEAM_BLUE, 0)
+                blue_lives = world.team_lives.get(self.config.TEAM_BLUE, 0)
+                blue_label = self.font.render(
+                    f"2. TIME AZUL: {blue_score:06d} pontos | vidas: {blue_lives}",
+                    True,
+                    blue_color,
+                )
+                self.screen.blit(blue_label, (center_x - 190, y))
+                y += 34
+                
+                # Mostra ranking individual também
+                y += 20
+                self._draw_text(
+                    self.font,
+                    "RANKING INDIVIDUAL",
+                    center_x - 90,
+                    y,
+                )
+                y += 35  
+            
+            else:
+                winner_id = getattr(world, "winner_id", None)
+                if winner_id is not None:
+                    winner_color = self.config.PLAYER_COLORS.get(
+                        winner_id,
+                        self.config.WHITE,
+                    )
 
-            y = 330
+                    winner_label = self.big.render(
+                        f"P{winner_id} VENCEU!",
+                        True,
+                        winner_color,
+                    )
 
+                    self.screen.blit(winner_label, (center_x - 190, 200))
+                else:
+                    self._draw_text(
+                        self.big,
+                        "EMPATE",
+                        center_x - 110,
+                        200,
+                    )
+
+                y = 330
+
+                self._draw_text(
+                self.font,
+                "RANKING FINAL",
+                center_x - 90,
+                y - 45,
+            )
+            
             ranking = sorted(
                 world.scores.items(),
                 key=lambda item: item[1],
                 reverse=True,
             )
 
-            self._draw_text(
-                self.font,
-                "RANKING FINAL",
-                center_x - 90,
-                y - 45,
-            )
-
             for index, item in enumerate(ranking, start=1):
                 player_id, score = item
                 lives = world.lives.get(player_id, 0)
 
-                color = self.config.PLAYER_COLORS.get(
-                    player_id,
-                    self.config.WHITE,
-                )
+                if game_mode == self.config.GAME_MODE_TEAMS:
+                    color = self.config.PLAYER_COLORS_TEAMS.get(player_id, self.config.WHITE)
+                else:
+                    color = self.config.PLAYER_COLORS.get(player_id, self.config.WHITE)
 
                 label = self.font.render(
                     f"{index}. P{player_id}: {score:06d} pontos | vidas: {lives}",
@@ -290,16 +361,16 @@ class Renderer:
 
         self._draw_text(
             self.font,
-            "Pressione qualquer botao para jogar novamente",
+            "Pressione qualquer botao para escolher o modo",
             center_x - 270,
-            560,
+            600,
         )
 
         self._draw_text(
             self.font,
             "ESC: sair",
             center_x - 55,
-            600,
+            640,
         )
 
     def _draw_text(

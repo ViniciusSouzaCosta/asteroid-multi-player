@@ -16,6 +16,7 @@ class CollisionResult:
 
     events: list[str] = field(default_factory=list)
     score_deltas: dict[PlayerId, int] = field(default_factory=dict)
+    team_score_deltas: dict[int, int] = field(default_factory=dict)  
     ship_deaths: list[PlayerId] = field(default_factory=list)
     death_causes: dict[PlayerId, PlayerId] = field(default_factory=dict)
     asteroids_to_spawn: list[tuple[Vec, Vec, str]] = field(default_factory=list)
@@ -63,6 +64,10 @@ class CollisionManager:
 
                 if bullet.owner_id == ship.player_id:
                     continue
+
+                if hasattr(bullet, 'team_id') and hasattr(ship, 'team_id'):
+                    if bullet.team_id > 0 and bullet.team_id == ship.team_id:
+                        continue
 
                 if (bullet.pos - ship.pos).length() < (bullet.r + ship.r):
                     bullet.kill()
@@ -119,6 +124,11 @@ class CollisionManager:
                     result.score_deltas[bullet.owner_id] = (
                         result.score_deltas.get(bullet.owner_id, 0) + score
                     )
+
+                    if hasattr(bullet, 'team_id') and bullet.team_id > 0:
+                        result.team_score_deltas[bullet.team_id] = (
+                            result.team_score_deltas.get(bullet.team_id, 0) + score
+                        )   
 
                     ufo.kill()
                     bullet.kill()
@@ -188,9 +198,9 @@ class CollisionManager:
         scorer_id: PlayerId | None = None,
     ) -> None:
         if scorer_id is not None:
+            score = C.AST_SIZES[ast.size]["score"]
             result.score_deltas[scorer_id] = (
-                result.score_deltas.get(scorer_id, 0)
-                + C.AST_SIZES[ast.size]["score"]
+                result.score_deltas.get(scorer_id, 0) + score
             )
 
         if ast.size == "L" and random() <= C.POWERUP_CHANCE:

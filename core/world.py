@@ -294,6 +294,12 @@ class World:
         for player_id, delta in result.score_deltas.items():
             if player_id in self.scores:
                 self.scores[player_id] += delta
+                
+                # NOVO: Atualiza pontuação da equipe
+                if self.game_mode == C.GAME_MODE_TEAMS:
+                    team_id = self.teams.get(player_id, 0)
+                    if team_id > 0:
+                        self.team_scores[team_id] = self.team_scores.get(team_id, 0) + delta
 
         for pos, vel, size in result.asteroids_to_spawn:
             self.spawn_asteroid(pos, vel, size)
