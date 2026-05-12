@@ -2,8 +2,8 @@
 
 import os
 
-WIDTH = 1280
-HEIGHT = 720
+WIDTH = 1536
+HEIGHT = 864
 FPS = 60
 
 MAX_PLAYERS = 4

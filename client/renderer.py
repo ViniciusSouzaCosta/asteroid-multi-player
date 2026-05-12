@@ -109,7 +109,7 @@ class Renderer:
             label = self.font.render(text, True, team_color)
             
             # Posiciona: time vermelho à esquerda do centro, azul à direita
-            x = center_x - 300 if team_id == self.config.TEAM_RED else center_x + 20
+            x = center_x - 420 if team_id == self.config.TEAM_RED else center_x + 50
             self.screen.blit(label, (x, y))
 
     def _draw_player_powerup_status(
@@ -329,14 +329,14 @@ class Renderer:
             self.font,
             "Pressione qualquer botao para escolher o modo",
             center_x - 270,
-            600,
+            self.config.HEIGHT - 80,
         )
 
         self._draw_text(
             self.font,
             "ESC: sair",
             center_x - 55,
-            640,
+            self.config.HEIGHT - 40,
         )
 
     def _draw_text(
