@@ -69,6 +69,13 @@ class CollisionManager:
                         continue
 
                 if (bullet.pos - ship.pos).length() < (bullet.r + ship.r):
+                    if getattr(ship, "parry_active_timer", 0.0) > 0.0:
+                        bullet.vel *= -1.5
+                        bullet.owner_id = ship.player_id
+                        if hasattr(bullet, 'team_id'):
+                            bullet.team_id = getattr(ship, 'team_id', 0)
+                        break
+
                     bullet.kill()
 
                     if ship.player_id not in result.ship_deaths:
@@ -183,6 +190,10 @@ class CollisionManager:
                     continue
 
                 if (bullet.pos - ship.pos).length() < (bullet.r + ship.r):
+                    if getattr(ship, "parry_active_timer", 0.0) > 0.0:
+                        bullet.vel *= -1.5 
+                        bullet.owner_id = ship.player_id # O jogador passa a ser dono do tiro
+                        break
                     bullet.kill()
 
                     if ship.player_id not in result.ship_deaths:

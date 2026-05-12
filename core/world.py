@@ -171,6 +171,9 @@ class World:
                     self.scores[player_id] - C.HYPERSPACE_COST,
                 )
 
+            if cmd.parry:
+                ship.try_parry()
+
             fired = ship.apply_command(cmd, dt, self.bullets)
 
             if fired is None:

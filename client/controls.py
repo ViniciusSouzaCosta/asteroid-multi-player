@@ -19,6 +19,7 @@ class InputMapper:
 
         self._shoot_pressed = {pid: False for pid in C.PLAYER_IDS}
         self._hyper_pressed = {pid: False for pid in C.PLAYER_IDS}
+        self._parry_pressed = {pid: False for pid in C.PLAYER_IDS}
 
         self.refresh_joysticks()
 
@@ -69,6 +70,9 @@ class InputMapper:
 
         elif event.button == C.CONTROLLER_HYPERSPACE_BUTTON:
             self._hyper_pressed[player_id] = True
+
+        elif event.button == C.CONTROLLER_PARRY_BUTTON: 
+            self._parry_pressed[player_id] = True
 
     def build_commands(self) -> dict[int, PlayerCommand]:
         commands: dict[int, PlayerCommand] = {}
@@ -121,9 +125,11 @@ class InputMapper:
         )
 
         hyperspace = self._hyper_pressed[player_id]
+        parry = self._parry_pressed[player_id]
 
         self._shoot_pressed[player_id] = False
         self._hyper_pressed[player_id] = False
+        self._parry_pressed[player_id] = False
 
         return PlayerCommand(
             rotate_left=rotate_left,
@@ -131,6 +137,7 @@ class InputMapper:
             thrust=thrust,
             shoot=shoot,
             hyperspace=hyperspace,
+            parry=parry
         )
 
     def _safe_axis(self, joy, axis: int) -> float:

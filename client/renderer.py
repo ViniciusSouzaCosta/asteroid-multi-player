@@ -424,6 +424,18 @@ class Renderer:
                 width=1,
             )
 
+        if ship.parry_on():
+            center = (int(ship.pos.x), int(ship.pos.y))
+            parry_radius = int(ship.r * 1.3)
+            
+            pg.draw.circle(
+                self.screen,
+                self.config.WHITE,
+                center,
+                parry_radius,
+                width=3
+            )
+
     def _get_player_team_color(self, player_id: int, team_id: int) -> tuple[int, int, int]:
         """Retorna a cor de um jogador no modo times."""
         # Usa PLAYER_COLORS_TEAMS do config para diferenciar dentro do time
