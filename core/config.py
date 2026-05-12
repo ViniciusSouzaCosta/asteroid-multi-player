@@ -83,8 +83,6 @@ BULLET_SPAWN_OFFSET = 6
 
 TRIPLE_SHOOT_DURATION = 5.0
 TRIPLE_SHOOT_SPREAD = 15
-
-TIME_STOP_DURATION = 4.0
 SHIELD_DURATION = 3.0
 
 POWERUP_CHANCE = 0.3
@@ -94,7 +92,6 @@ POWERUP_TTL = 8.0
 
 POWERUP_TYPES = {
     "triple_shot": {"color": (0, 255, 0)},
-    "time_stop": {"color": (0, 255, 255)},
     "extra_life": {"color": (255, 215, 0)},
     "shield": {"color": (0, 0, 255)},
 }

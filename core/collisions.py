@@ -21,7 +21,6 @@ class CollisionResult:
     death_causes: dict[PlayerId, PlayerId] = field(default_factory=dict)
     asteroids_to_spawn: list[tuple[Vec, Vec, str]] = field(default_factory=list)
     powerups_to_spawn: list[tuple[Vec, str]] = field(default_factory=list)
-    time_stop_activated: bool = False
     extra_life_pickups: list[PlayerId] = field(default_factory=list)
 
 
@@ -205,7 +204,7 @@ class CollisionManager:
 
         if ast.size == "L" and random() <= C.POWERUP_CHANCE:
             powerup_type = choice(
-                ["triple_shot", "time_stop", "extra_life", "shield"]
+                ["triple_shot", "extra_life", "shield"]
             )
             result.powerups_to_spawn.append((Vec(ast.pos), powerup_type))
 
@@ -234,9 +233,6 @@ class CollisionManager:
                     if powerup.type == "triple_shot":
                         ship.triple_shot_active = True
                         ship.triple_shot_timer = C.TRIPLE_SHOOT_DURATION
-
-                    elif powerup.type == "time_stop":
-                        result.time_stop_activated = True
 
                     elif powerup.type == "extra_life":
                         result.extra_life_pickups.append(ship.player_id)

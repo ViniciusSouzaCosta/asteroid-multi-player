@@ -47,7 +47,6 @@ class World:
 
         self.game_over = False
         self.winner_id = None
-        self.time_stop_timer = 0.0
 
         for player_id in C.PLAYER_IDS:
             self.spawn_player(player_id)
@@ -143,20 +142,6 @@ class World:
             return
 
         self._apply_commands(dt, commands_by_player_id)
-
-        if self.time_stop_timer > 0:
-            self.time_stop_timer -= dt
-
-            for ship in self.ships.values():
-                ship.update(dt)
-
-            for bullet in self.bullets:
-                if bullet.owner_id > 0:
-                    bullet.update(dt)
-
-            self.powerups.update(dt)
-            self._handle_collisions()
-            return
 
         self.all_sprites.update(dt)
         self._update_ufos(dt)
@@ -285,9 +270,6 @@ class World:
             self.ufos,
             self.powerups,
         )
-
-        if getattr(result, "time_stop_activated", False):
-            self.time_stop_timer = float(C.TIME_STOP_DURATION)
 
         self.events.extend(result.events)
 
